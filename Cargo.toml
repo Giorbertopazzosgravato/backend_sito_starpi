@@ -1,0 +1,6 @@
+[package]
+name = "test_server_starpi_nolibs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
