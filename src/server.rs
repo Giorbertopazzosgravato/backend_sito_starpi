@@ -1,4 +1,5 @@
 use std::{fs, io};
+use std::env::current_dir;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -39,14 +40,22 @@ impl Server{
             None => { HTTP_BAD_REQUEST_DEFAULT_MESSAGE.as_bytes().to_owned() }
             Some(line) => {
                 let line = *line;
-                match if line == "/"{ self.get_file_content("index.html") } else{ self.get_file_content(line.trim_start_matches("/")) }
+
+
+                match if line == "/"
+                || Path::new(line).extension() == None { //cuz spaghetti code is good 👍
+                    self.get_file_content("index.html")
+                } else {
+                    self.get_file_content(line.trim_start_matches("/").replace("%20", " "))
+                }
                 {
-                    Ok(response ) => {
-                        let mut final_response = format!("{HTTP_OK}\r\nContent-Length:{}\r\n\r\n", response.len()).into_bytes();
+                    Ok((response, content_type) ) => {
+                        let mut final_response = format!("{HTTP_OK}\r\nContent-type: {}\r\nContent-Length:{}\r\n\r\n", content_type, response.len()).into_bytes();
                         final_response.extend(response);
                         final_response
                     }
                     Err(response ) => {
+                        println!("errore dio terrone {}", String::from_utf8_lossy(&response));
                         let mut final_response = format!("{HTTP_BAD_REQUEST}\r\nContent-Length:{}\r\n\r\n", response.len()).into_bytes();
                         final_response.extend(response);
                         final_response
@@ -55,14 +64,15 @@ impl Server{
             }
         }
     }
-    fn get_file_content<P: AsRef<Path>>(&self, path: P) -> Result<Vec<u8>, Vec<u8>>{
+    fn get_file_content<P: AsRef<Path>>(&self, path: P) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
         if let Ok(resolved_path) =  self.is_path_safe(path) {
             println!("path: {:?}", resolved_path);
-            match fs::File::open(resolved_path){
+            match fs::File::open(&resolved_path){
                 Ok(mut file_content) => {
+                    let content_type = Self::get_content_type(resolved_path.extension());
                     let mut buffer = vec![];
                     let bytes_read = file_content.read_to_end(&mut buffer).unwrap_or(0);
-                    if bytes_read > 0{ Ok(buffer) } else{ println!("fuck"); Err("fuck".as_bytes().to_owned()) }
+                    if bytes_read > 0{ Ok((buffer, content_type)) } else{ println!("fuck"); Err("fuck".as_bytes().to_owned()) }
                 }
                 Err(_) => { Err(Self::get_error_page()) }
             }
@@ -70,10 +80,39 @@ impl Server{
             Err(Self::get_error_page())
         }
     }
+    fn get_content_type(extension: Option<&OsStr>) -> &'static str{
+        match extension{
+            None => {"*/*"}
+            Some(extension) => {
+                if let Some(extension) = extension.to_str(){
+                    println!("{extension}");
+                    match extension{
+                        "html" => { "text/html" }
+                        "css" => { "text/css" }
+
+                        "js" => { "application/javascript" }
+
+                        "png" => { "image/png" }
+                        "jpeg" => { "image/jpeg" }
+                        "jpg" => { "image/jpeg" }
+                        "webp" => { "image/webp" }
+                        "gif" => { "image/webp" }
+                        "heic" => { "image/heic" }
+                        "heif" => { "image/heif" }
+                        &_ => { "*/*" }
+                    }
+                } else {
+                    "*/*"
+                }
+
+            }
+        }
+    }
     fn get_error_page()->Vec<u8>{
-        match fs::read_to_string("/dist/404.html"){
+        match fs::read_to_string("dist/404.html"){
             Ok(file_content) => {file_content.into()}
             Err(_) => {
+                println!("zsdqweweorfinedroiugnseopg");
                 "<h1>server so broken I couldn't even find a 404 page</h1>".as_bytes().to_owned()
             }
         }

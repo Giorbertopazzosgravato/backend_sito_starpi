@@ -26,7 +26,7 @@ impl TestServer{
                 "{vaffanculo: true}".as_bytes().to_owned()
             } else {
                 let mut buffer = vec![];
-                let mut file_content = fs::File::open("black cock.jpg").unwrap();
+                let mut file_content = fs::File::open("../black_cock.jpg").unwrap();
                 let file_content = file_content.read_to_end(&mut buffer).unwrap();
 
                 let mut partial = format!("{HTTP_OK}\r\nContent-length:{}\r\n\r\n", file_content).as_bytes().to_owned();
