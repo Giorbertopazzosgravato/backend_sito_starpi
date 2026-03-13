@@ -14,6 +14,7 @@ pub struct Server{
 }
 impl Server{
     pub fn new(addr: &str) -> io::Result<Self>{
+        println!("{:?}", current_dir());
         let listener = TcpListener::bind(addr)?;
         Ok(Self{
             listener,
@@ -109,10 +110,11 @@ impl Server{
         }
     }
     fn get_error_page()->Vec<u8>{
-        match fs::read_to_string("dist/404.html"){
+        match fs::read_to_string("./dist/404.html"){
             Ok(file_content) => {file_content.into()}
             Err(_) => {
                 println!("zsdqweweorfinedroiugnseopg");
+                //possibly log the error, what the hell
                 "<h1>server so broken I couldn't even find a 404 page</h1>".as_bytes().to_owned()
             }
         }
