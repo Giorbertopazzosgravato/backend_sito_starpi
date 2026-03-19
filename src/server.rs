@@ -1,9 +1,10 @@
-use std::{fs, io};
+use std::{fs};
 use std::env::current_dir;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
+use crate::server_utils::database::Database;
 
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
@@ -11,41 +12,46 @@ pub const HTTP_BAD_REQUEST_DEFAULT_MESSAGE: &str = "HTTP/1.1 400 Bad Request\r\n
 pub struct Server{
     listener: TcpListener,
     base_path: PathBuf,
+    db: Database
 }
 impl Server{
-    pub fn new(addr: &str) -> io::Result<Self>{
+    pub async fn new(addr: &str) -> anyhow::Result<Self>{
         println!("{:?}", current_dir());
         let listener = TcpListener::bind(addr)?;
+        let database = Database::new("./database/db.env").await.unwrap();
+
         Ok(Self{
             listener,
             base_path: Path::new("./dist/").to_owned(),
+            db: database,
         })
     }
-    pub fn start(&mut self){
+    pub async fn start(&mut self){
         // Todo: make a thread pool, for now let's just thank god we have this
-        for stream in self.listener.incoming(){
-            let mut stream= stream.unwrap();
+        while let Ok((mut stream, socket_address)) = self.listener.accept(){
             let mut buffer: [u8; 1024] = [0; 1024];
 
             stream.read(&mut buffer).expect("zamn");
             let request_string = String::from_utf8_lossy(&buffer);
             let lines = request_string.split(" ").collect::<Vec<_>>();
             println!("{:?}", lines);
-            let response = Self::handle_get_request(self, lines.get(1));
+            let response = Self::handle_get_request(self, lines.get(1)).await;
             stream.write_all(&response).unwrap();
-
         }
     }
-    fn handle_get_request(&self, request: Option<&&str>) -> Vec<u8>{
+    async fn handle_get_request(&mut self, request: Option<&&str>) -> Vec<u8>{
         match request{
             None => { HTTP_BAD_REQUEST_DEFAULT_MESSAGE.as_bytes().to_owned() }
             Some(line) => {
                 let line = *line;
 
-
                 match if line == "/"
                 || Path::new(line).extension() == None { //cuz spaghetti code is good 👍
-                    self.get_file_content("index.html")
+                    if line.starts_with("/database/"){
+                        self.get_from_database(line).await
+                    } else {
+                        self.get_file_content("index.html")
+                    }
                 } else {
                     self.get_file_content(line.trim_start_matches("/").replace("%20", " "))
                 }
@@ -132,5 +138,12 @@ impl Server{
         };
 
         if resolved_path.starts_with(canonical_base){ Ok(resolved_path) } else { Err(true) }
+    }
+    async fn get_from_database(&mut self, line: &str) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
+        let line = line.strip_prefix("/database/").unwrap_or("");
+        match self.db.get_from_db(line).await{
+            Ok(response) => { Ok((response, "text/json")) }
+            Err(err) => { Err(err) }
+        }
     }
 }
