@@ -116,7 +116,7 @@ impl Server{
         }
     }
     fn get_error_page()->Vec<u8>{
-        match fs::read_to_string("./dist/404.html"){
+        match fs::read_to_string("404.html"){
             Ok(file_content) => {file_content.into()}
             Err(_) => {
                 println!("zsdqweweorfinedroiugnseopg");
