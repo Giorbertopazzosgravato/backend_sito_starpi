@@ -53,7 +53,7 @@ impl Database{
                '[]'
        ) AS json_string
 FROM news n
-         JOIN category c ON n.categoria_id = c.id;").fetch_one(&self.connection).await {
+         JOIN categoria c ON n.categoria_id = c.id;").fetch_one(&self.connection).await {
                     Ok(result) => {Ok(result.get::<String, &str>("json_string").into_bytes())}
                     Err(error) => {
                         println!("{:?}", error);
