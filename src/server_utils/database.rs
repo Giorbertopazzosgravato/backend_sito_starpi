@@ -72,27 +72,28 @@ FROM (
          SELECT
              jsonb_build_object(
                      'dipartimento', d.nome,
-                 -- Estraiamo il primo elemento che soddisfa la condizione di 'Capo'
-                     'capo', (
-                                         jsonb_agg(
-                                         jsonb_build_object(
-                                                 'nome', p.nome,
-                                                 'cognome', p.cognome,
-                                                 'ruolo', r.nome_ruolo,
-                                                 'link', p.link
-                                         )
-                                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%')
-                                 ) -> 0,
-                 -- Aggreghiamo tutti gli altri che NON sono capi
-                     'persone', coalesce(
-                                     jsonb_agg(
+                     -- Ora restituisce l'intero array di capi invece del solo primo elemento
+                     'capo', coalesce(
+                                 jsonb_agg(
                                      jsonb_build_object(
                                              'nome', p.nome,
                                              'cognome', p.cognome,
                                              'ruolo', r.nome_ruolo,
                                              'link', p.link
                                      )
-                                              ) FILTER (WHERE r.nome_ruolo NOT ILIKE '%Chief%' AND r.nome_ruolo NOT ILIKE '%President%'),
+                                 ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%'),
+                                 '[]'::jsonb
+                             ),
+                     -- Aggreghiamo tutti gli altri che NON sono capi
+                     'persone', coalesce(
+                                     jsonb_agg(
+                                         jsonb_build_object(
+                                                 'nome', p.nome,
+                                                 'cognome', p.cognome,
+                                                 'ruolo', r.nome_ruolo,
+                                                 'link', p.link
+                                         )
+                                     ) FILTER (WHERE r.nome_ruolo NOT ILIKE '%Chief%' AND r.nome_ruolo NOT ILIKE '%President%'),
                                      '[]'::jsonb
                                 )
              ) AS dipartimenti_json
