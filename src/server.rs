@@ -34,7 +34,7 @@ impl Server{
             stream.read(&mut buffer).expect("zamn");
             let request_string = String::from_utf8_lossy(&buffer);
             let lines = request_string.split(" ").collect::<Vec<_>>();
-            println!("{:?}", lines);
+
             let response = Self::handle_get_request(self, lines.get(1)).await;
             stream.write_all(&response).unwrap();
         }
@@ -73,7 +73,6 @@ impl Server{
     }
     fn get_file_content<P: AsRef<Path>>(&self, path: P) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
         if let Ok(resolved_path) =  self.is_path_safe(path) {
-            println!("path: {:?}", resolved_path);
             match fs::File::open(&resolved_path){
                 Ok(mut file_content) => {
                     let content_type = Self::get_content_type(resolved_path.extension());

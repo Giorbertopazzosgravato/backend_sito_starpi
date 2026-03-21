@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use sqlx::{Error, Pool, Postgres, Row};
 use sqlx::postgres::PgRow;
 use crate::server_utils::env::EnvGetter;
@@ -22,7 +23,9 @@ impl Database{
         })
     }
     pub async fn get_from_db(&mut self, request: &str) -> Result<Vec<u8>, Vec<u8>>{
-        match request{
+        println!("request: {}", request);
+        let request = request.split("/").collect::<Vec<_>>();
+        match request[0]{
             "please_server_I_need_this_my_news_is_kinda_homeless"=>{
                 match sqlx::query("SELECT COALESCE(
                             json_agg(
@@ -59,6 +62,54 @@ FROM news n
                         println!("{:?}", error);
                         Err("[{}]".to_string().into_bytes())
                     }
+                }
+            }
+            "send_me_teams" => {
+
+                let year = i32::from_str(*request.get(1).unwrap_or(&"2025")).unwrap_or(2025);
+                match sqlx::query("SELECT (coalesce(jsonb_agg(dipartimenti_json), '[]'::jsonb))::text AS json_finale
+FROM (
+         SELECT
+             jsonb_build_object(
+                     'dipartimento', d.nome,
+                 -- Estraiamo il primo elemento che soddisfa la condizione di 'Capo'
+                     'capo', (
+                                         jsonb_agg(
+                                         jsonb_build_object(
+                                                 'nome', p.nome,
+                                                 'cognome', p.cognome,
+                                                 'ruolo', r.nome_ruolo,
+                                                 'link', p.link
+                                         )
+                                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%')
+                                 ) -> 0,
+                 -- Aggreghiamo tutti gli altri che NON sono capi
+                     'persone', coalesce(
+                                     jsonb_agg(
+                                     jsonb_build_object(
+                                             'nome', p.nome,
+                                             'cognome', p.cognome,
+                                             'ruolo', r.nome_ruolo,
+                                             'link', p.link
+                                     )
+                                              ) FILTER (WHERE r.nome_ruolo NOT ILIKE '%Chief%' AND r.nome_ruolo NOT ILIKE '%President%'),
+                                     '[]'::jsonb
+                                )
+             ) AS dipartimenti_json
+         FROM iscrizione i
+                  JOIN ruolo r ON i.ruolo = r.id
+                  JOIN persona p ON i.id_persona = p.id
+                  JOIN dipartimento d ON i.dipartimento = d.id
+         WHERE i.anno = $1
+         GROUP BY d.nome
+     ) sub;").bind(year).fetch_one(&self.connection).await
+                {
+                    Ok(row) => {
+                        println!("row: {:?}", row);
+                        Ok(row.get::<String, &str>("json_finale").into_bytes())}
+                    Err(error) => {
+                        println!("{:?}", error);
+                        Err("[]".to_string().into_bytes())}
                 }
             }
             _=>{
