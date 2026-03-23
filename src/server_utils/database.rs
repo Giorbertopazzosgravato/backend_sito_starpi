@@ -79,7 +79,8 @@ FROM (
                                              'nome', p.nome,
                                              'cognome', p.cognome,
                                              'ruolo', r.nome_ruolo,
-                                             'link', p.link
+                                             'link', p.link,
+                                            
                                      )
                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%'),
                                  '[]'::jsonb
