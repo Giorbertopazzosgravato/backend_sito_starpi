@@ -11,7 +11,8 @@ pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_BAD_REQUEST_DEFAULT_MESSAGE: &str = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: 71\r\n{\"error\": \"Bad request\",\"message\": \"Request body could not be read properly.\",}";
 pub struct Server{
     listener: TcpListener,
-    base_path: PathBuf,
+    website_path: PathBuf,
+    photo_path: PathBuf,
     db: Database
 }
 impl Server{
@@ -22,7 +23,8 @@ impl Server{
 
         Ok(Self{
             listener,
-            base_path: Path::new("./dist/").to_owned(),
+            website_path: Path::new("./dist/").to_owned(),
+            photo_path: Path::new("./foto/").to_owned(),
             db: database,
         })
     }
@@ -34,7 +36,7 @@ impl Server{
             stream.read(&mut buffer).expect("zamn");
             let request_string = String::from_utf8_lossy(&buffer);
             let lines = request_string.split(" ").collect::<Vec<_>>();
-
+            // println!("request: {:?}", lines);
             let response = Self::handle_get_request(self, lines.get(1)).await;
             stream.write_all(&response).unwrap();
         }
@@ -71,7 +73,7 @@ impl Server{
             }
         }
     }
-    fn get_file_content<P: AsRef<Path>>(&self, path: P) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
+    fn get_file_content<P: AsRef<Path> + std::fmt::Debug>(&self, path: P) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
         if let Ok(resolved_path) =  self.is_path_safe(path) {
             match fs::File::open(&resolved_path){
                 Ok(mut file_content) => {
@@ -124,19 +126,29 @@ impl Server{
             }
         }
     }
-    fn is_path_safe<P: AsRef<Path>>(&self, user_input: P) -> Result<PathBuf, bool> {
-        let combined_path = self.base_path.join(user_input);
+    fn is_path_safe<P: AsRef<Path> + std::fmt::Debug>(&self, user_input: P) -> Result<PathBuf, bool> {
+        let user_input = user_input.as_ref();
+        let combined_path = if user_input.starts_with("foto/"){
+            self.photo_path.join(user_input.strip_prefix("foto/").unwrap_or(user_input))
+        } else {
+            self.website_path.join(user_input)
+        };
+
         println!("{:?}", combined_path);
         let resolved_path = match combined_path.canonicalize() {
             Ok(path) => path,
             Err(_) => return Err(false), // Path doesn't exist or permission denied
         };
-        let canonical_base = match self.base_path.canonicalize() {
+        let website_path = match self.website_path.canonicalize() {
+            Ok(path) => path,
+            Err(_) => return Err(false),
+        };
+        let foto_path = match self.photo_path.canonicalize(){
             Ok(path) => path,
             Err(_) => return Err(false),
         };
 
-        if resolved_path.starts_with(canonical_base){ Ok(resolved_path) } else { Err(true) }
+        if resolved_path.starts_with(website_path) || resolved_path.starts_with(foto_path){ Ok(resolved_path) } else { Err(true) }
     }
     async fn get_from_database(&mut self, line: &str) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
         let line = line.strip_prefix("/database/").unwrap_or("");

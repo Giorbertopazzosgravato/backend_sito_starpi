@@ -78,9 +78,8 @@ FROM (
                                      jsonb_build_object(
                                              'nome', p.nome,
                                              'cognome', p.cognome,
-                                             'ruolo', r.nome_ruolo,
                                              'link', p.link,
-                                            
+                                             'imgURL', ( '../../foto/'||$1||'/' || i.fotourl )
                                      )
                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%'),
                                  '[]'::jsonb
@@ -91,8 +90,8 @@ FROM (
                                          jsonb_build_object(
                                                  'nome', p.nome,
                                                  'cognome', p.cognome,
-                                                 'ruolo', r.nome_ruolo,
-                                                 'link', p.link
+                                                 'link', p.link,
+                                                 'imgURL', ( '../../foto/'||$1||'/' || i.fotourl )
                                          )
                                      ) FILTER (WHERE r.nome_ruolo NOT ILIKE '%Chief%' AND r.nome_ruolo NOT ILIKE '%President%'),
                                      '[]'::jsonb
