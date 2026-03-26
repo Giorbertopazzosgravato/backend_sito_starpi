@@ -2,6 +2,7 @@ use std::str::FromStr;
 use sqlx::{Error, Pool, Postgres, Row};
 use sqlx::postgres::PgRow;
 use crate::server_utils::env::EnvGetter;
+use crate::server_utils::file_handler::{HttpCodes, HttpResponseDescriptor};
 
 #[derive(Clone)]
 pub struct Database{
@@ -22,6 +23,23 @@ impl Database{
         Ok(Self{
             connection,
         })
+    }
+    pub(crate) async fn get(&self, line: &str) -> HttpResponseDescriptor {
+        let line = line.strip_prefix("/database/").unwrap_or("");
+        match self.get_from_db(line).await{
+            Ok(response) => {
+                HttpResponseDescriptor{
+                    content: response,
+                    content_type: "text/json",
+                    code: HttpCodes::Ok,
+                }
+            }
+            Err(err) => { HttpResponseDescriptor{
+                content: err,
+                content_type: "text/json",
+                code: HttpCodes::FileNotFound,
+            } }
+        }
     }
     pub async fn get_from_db(&self, request: &str) -> Result<Vec<u8>, Vec<u8>>{
         println!("request: {}", request);
@@ -44,20 +62,23 @@ impl Database{
                     }
                 }
             }
+
             "please_server_send_me_newds"=>{
-                match sqlx::query("SELECT COALESCE(
-               json_agg(
-                       json_build_object(
+                match sqlx::query("
+                    SELECT COALESCE(
+                        json_agg(
+                            json_build_object(
                                'titolo', n.titolo,
                                'descrizione', n.descrizione,
                                'imageURL', n.path_immagine,
                                'categoria', c.nome
-                       ) ORDER BY  n.id
-               )::text,
-               '[]'
-       ) AS json_string
-FROM news n
-         JOIN categoria c ON n.categoria_id = c.id;").fetch_one(&self.connection).await {
+                            ) ORDER BY  n.id
+                        )::text, '[]') AS json_string
+                        FROM news n
+                        JOIN categoria c
+                            ON n.categoria_id = c.id;")
+
+                    .fetch_one(&self.connection).await {
                     Ok(result) => {Ok(result.get::<String, &str>("json_string").into_bytes())}
                     Err(error) => {
                         println!("{:?}", error);
