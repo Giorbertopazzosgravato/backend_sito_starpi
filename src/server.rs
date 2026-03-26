@@ -4,44 +4,52 @@ use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use crate::server_utils::database::Database;
+use crate::server_utils::thread_pool::ThreadPool;
 
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_BAD_REQUEST_DEFAULT_MESSAGE: &str = "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: 71\r\n{\"error\": \"Bad request\",\"message\": \"Request body could not be read properly.\",}";
 pub struct Server{
     listener: TcpListener,
+    db: Database,
+    thread_pool: ThreadPool,
     website_path: PathBuf,
     photo_path: PathBuf,
-    db: Database
 }
 impl Server{
     pub async fn new(addr: &str) -> anyhow::Result<Self>{
         println!("{:?}", current_dir());
         let listener = TcpListener::bind(addr)?;
-        let database = Database::new("./database/db.env").await.unwrap();
-
+        let database = Database::new("./database/db.env").await?;
+        let thread_pool  = ThreadPool::new(10);
         Ok(Self{
             listener,
             website_path: Path::new("./dist/").to_owned(),
             photo_path: Path::new("./foto/").to_owned(),
             db: database,
+            thread_pool
         })
     }
     pub async fn start(&mut self){
-        // Todo: make a thread pool, for now let's just thank god we have this
         while let Ok((mut stream, socket_address)) = self.listener.accept(){
-            let mut buffer: [u8; 1024] = [0; 1024];
+            let db = self.db.clone();
+            self.thread_pool.execute( async move ||{
+                let database = db;
+                let mut buffer: [u8; 1024] = [0; 1024];
 
-            stream.read(&mut buffer).expect("zamn");
-            let request_string = String::from_utf8_lossy(&buffer);
-            let lines = request_string.split(" ").collect::<Vec<_>>();
-            // println!("request: {:?}", lines);
-            let response = Self::handle_get_request(self, lines.get(1)).await;
-            stream.write_all(&response).unwrap();
+                stream.read(&mut buffer).expect("zamn");
+                let request_string = String::from_utf8_lossy(&buffer);
+                let lines = request_string.split(" ").collect::<Vec<_>>();
+
+                let response = Self::handle_get_request(self, lines.get(1)).await;
+                stream.write_all(&response).unwrap();
+            });
+
         }
     }
-    async fn handle_get_request(&mut self, request: Option<&&str>) -> Vec<u8>{
+    async fn handle_get_request(database: Database, request: Option<&&str>) -> Vec<u8>{
         match request{
             None => { HTTP_BAD_REQUEST_DEFAULT_MESSAGE.as_bytes().to_owned() }
             Some(line) => {
@@ -50,12 +58,12 @@ impl Server{
                 match if line == "/"
                 || Path::new(line).extension() == None { //cuz spaghetti code is good 👍
                     if line.starts_with("/database/"){
-                        self.get_from_database(line).await
+                        database.get_from_database(line).await
                     } else {
-                        self.get_file_content("index.html")
+                        Self::get_file_content(/* &server::Server */, "index.html")
                     }
                 } else {
-                    self.get_file_content(line.trim_start_matches("/").replace("%20", " "))
+                    Self::get_file_content(line.trim_start_matches("/").replace("%20", " "))
                 }
                 {
                     Ok((response, content_type) ) => {
@@ -150,9 +158,9 @@ impl Server{
 
         if resolved_path.starts_with(website_path) || resolved_path.starts_with(foto_path){ Ok(resolved_path) } else { Err(true) }
     }
-    async fn get_from_database(&mut self, line: &str) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
+    async fn get_from_database(database: &mut Database, line: &str) -> Result<(Vec<u8>, &'static str), Vec<u8>>{
         let line = line.strip_prefix("/database/").unwrap_or("");
-        match self.db.get_from_db(line).await{
+        match database.get_from_db(line).await{
             Ok(response) => { Ok((response, "text/json")) }
             Err(err) => { Err(err) }
         }

@@ -3,6 +3,7 @@ use sqlx::{Error, Pool, Postgres, Row};
 use sqlx::postgres::PgRow;
 use crate::server_utils::env::EnvGetter;
 
+#[derive(Clone)]
 pub struct Database{
     pub connection: Pool<Postgres>
 }
@@ -22,7 +23,7 @@ impl Database{
             connection,
         })
     }
-    pub async fn get_from_db(&mut self, request: &str) -> Result<Vec<u8>, Vec<u8>>{
+    pub async fn get_from_db(&self, request: &str) -> Result<Vec<u8>, Vec<u8>>{
         println!("request: {}", request);
         let request = request.split("/").collect::<Vec<_>>();
         match request[0]{
