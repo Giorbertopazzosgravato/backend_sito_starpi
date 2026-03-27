@@ -1,6 +1,5 @@
 use std::str::FromStr;
-use sqlx::{Error, Pool, Postgres, Row};
-use sqlx::postgres::PgRow;
+use sqlx::{Pool, Postgres, Row};
 use crate::server_utils::env::EnvGetter;
 use crate::server_utils::file_handler::{HttpCodes, HttpResponseDescriptor};
 
@@ -87,7 +86,7 @@ impl Database{
                 }
             }
             "send_me_teams" => {
-
+                // qua una cache sarebbe op
                 let year = i32::from_str(*request.get(1).unwrap_or(&"2025")).unwrap_or(2025);
                 match sqlx::query("SELECT (coalesce(jsonb_agg(dipartimenti_json), '[]'::jsonb))::text AS json_finale
 FROM (
