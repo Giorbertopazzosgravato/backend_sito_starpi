@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 const DIST: &str = "dist/";
 const FOTO: &str = "foto/";
+const NEWS: &str = "news/";
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_FORBIDDEN: &str = "HTTP/1.1 403 Forbidden";
@@ -67,6 +68,11 @@ impl FileHandler{
                 PathBuf::from(FOTO).canonicalize(),
                 PathBuf::from(FOTO).join(user_input.strip_prefix(FOTO).unwrap_or(user_input)).canonicalize()
             )
+        } else if user_input.starts_with(NEWS) {
+            (
+                PathBuf::from(NEWS).canonicalize(),
+                PathBuf::from(NEWS).join(user_input.strip_prefix(NEWS).unwrap_or(user_input)).canonicalize()
+            )
         } else {
             (
                 PathBuf::from(DIST).canonicalize(),
@@ -83,7 +89,7 @@ impl FileHandler{
                 }
             }
             Err(what) => {
-                println!("error while looking for user path: {what}");
+                println!("error while looking for user path: {:?} {what}", user_input);
                 Err(false)
             }
         }

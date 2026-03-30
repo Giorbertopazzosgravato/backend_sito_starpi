@@ -49,8 +49,9 @@ impl Database{
                             json_agg(
                                 json_build_object(
                                     'title', news.titolo,
-                                    'image', news.path_immagine
-                                ) ORDER BY news.id
+                                    'image', ('/foto/news/'||news.path_immagine),
+                                    'link', ('/news/' || news.link)
+                                ) ORDER BY news.id DESC
                         )::text,
                         '[]'
        ) as json_string FROM news").fetch_one(&self.connection).await {
@@ -69,9 +70,11 @@ impl Database{
                             json_build_object(
                                'titolo', n.titolo,
                                'descrizione', n.descrizione,
-                               'imageURL', n.path_immagine,
+                               'imageURL', ('/foto/news/'||n.path_immagine),
+                               'link', ('/news/' || n.link),
+                               'data_rilascio', n.data_rilascio,
                                'categoria', c.nome
-                            ) ORDER BY  n.id
+                            ) ORDER BY  n.data_rilascio DESC
                         )::text, '[]') AS json_string
                         FROM news n
                         JOIN categoria c
@@ -100,7 +103,7 @@ FROM (
                                              'nome', p.nome,
                                              'cognome', p.cognome,
                                              'link', p.link,
-                                             'imgURL', ( '../../foto/'||$1||'/' || i.fotourl )
+                                             'imgURL', ( '/foto/teams/'||$1||'/' || i.fotourl )
                                      )
                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%'),
                                  '[]'::jsonb
@@ -112,7 +115,7 @@ FROM (
                                                  'nome', p.nome,
                                                  'cognome', p.cognome,
                                                  'link', p.link,
-                                                 'imgURL', ( '../../foto/'||$1||'/' || i.fotourl )
+                                                 'imgURL', ( '/foto/teams/'||$1||'/' || i.fotourl )
                                          )
                                      ) FILTER (WHERE r.nome_ruolo NOT ILIKE '%Chief%' AND r.nome_ruolo NOT ILIKE '%President%'),
                                      '[]'::jsonb
