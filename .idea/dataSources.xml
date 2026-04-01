@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="StarPi@localhost" uuid="b375b45b-2253-4d47-83b5-6c6af1335dd8">
+    <data-source source="LOCAL" name="StarPi@localhost" uuid="c2983aa3-894e-42bd-908a-3520ee21a7cd">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
-      <jdbc-url>jdbc:postgresql://localhost:5432/StarPi</jdbc-url>
+      <jdbc-url>jdbc:postgresql://localhost:5433/StarPi</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

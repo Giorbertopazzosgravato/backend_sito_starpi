@@ -103,7 +103,8 @@ FROM (
                                              'nome', p.nome,
                                              'cognome', p.cognome,
                                              'link', p.link,
-                                             'imgURL', ( '/foto/teams/'||$1||'/' || i.fotourl )
+                                             'imgURL', ( '/foto/teams/'||$1||'/' || i.fotourl ),
+                                             'quote', i.quote
                                      )
                                  ) FILTER (WHERE r.nome_ruolo ILIKE '%Chief%' OR r.nome_ruolo ILIKE '%President%'),
                                  '[]'::jsonb
@@ -126,7 +127,8 @@ FROM (
                   JOIN persona p ON i.id_persona = p.id
                   JOIN dipartimento d ON i.dipartimento = d.id
          WHERE i.anno = $1
-         GROUP BY d.nome
+         GROUP BY d.nome, d.id
+         ORDER BY d.id DESC
      ) sub;").bind(year).fetch_one(&self.connection).await
                 {
                     Ok(row) => {

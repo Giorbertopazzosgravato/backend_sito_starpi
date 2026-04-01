@@ -5,23 +5,27 @@ FROM rust:1.94 as builder
 # Create a working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy your entire project into the container
-COPY . .
+# 1. Copia SOLO i manifesti delle dipendenze
+COPY Cargo.toml Cargo.lock ./
 
-# Compile the application in release mode
-RUN cargo build --release
+# 2. Crea un programma "finto" e compilalo.
+# In questo modo Docker scaricherà e compilerà Tokio, SQLx, ecc. e lo salverà in cache!
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build
+RUN rm -rf src
+
+# 3. ORA copia il tuo vero codice
+COPY src ./src
+# Tocchiamo il file per forzare Cargo a notare il cambiamento e ricompilare
+RUN touch src/main.rs
+RUN cargo build
 
 # --- Stage 2: The Runtime Environment ---
-# Use a minimal Debian image for the final runtime
 FROM debian:bookworm-slim
-
-# (Optional) Install SSL certificates if your app makes external HTTPS requests
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /usr/src/app
-# Copy the compiled binary from the 'builder' stage into this new, clean stage
-# IMPORTANT: Replace 'my_rust_project' with the actual name of your app from your Cargo.toml
-COPY --from=builder /usr/src/app/target/release/test_server_starpi_nolibs /usr/local/bin/test_server_starpi_nolibs
+# Attenzione: ORA COPIAMO DALLA CARTELLA 'debug' NON PIÙ DA 'release'
+# Nota: usa il nome corretto del tuo eseguibile al posto di 'test_server_starpi_nolibs'
+COPY --from=builder /usr/src/app/target/debug/test_server_starpi_nolibs /usr/local/bin/test_server_starpi_nolibs
 
-# Set the command to run your binary
 CMD ["test_server_starpi_nolibs"]
