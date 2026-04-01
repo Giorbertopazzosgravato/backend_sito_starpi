@@ -4,14 +4,8 @@ services:
   db:
     image: postgres:18.3-alpine
     restart: always
-    environment:
-      - POSTGRES_USER=giacomo
-      - POSTGRES_PASSWORD=1407
-      - POSTGRES_DB=StarPi
     env_file:
       - ./database/db.env
-    ports:
-      - "5433:5432"
     volumes:
       # Saves the database data permanently on your host machine
       - pgdata:/var/lib/postgresql/data

@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://localhost:5433/StarPi</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="StarPi@localhost [2]" uuid="d0c360f8-55d1-4f58-93d8-b74b3e2889b5">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5433/StarPi</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>
