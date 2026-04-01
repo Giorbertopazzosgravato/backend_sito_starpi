@@ -13,6 +13,9 @@ impl NewsLetterSub{
             email: None,
         };
         if let Some(data) = data{
+            // zstd\r\n\r\nnome=gino&e-mail=il_postino%40gmail.com\0\0\0\0\0\0...
+            // =>
+            // [(nome=gino), (e-mail=il_postino%40gmail.com)]
             let new_data = data
                 .trim_end_matches("\0")
                 .split("\r\n\r\n")
@@ -23,7 +26,7 @@ impl NewsLetterSub{
                 .collect::<Vec<_>>();
             for entry in new_data {
                 let splitted = entry.split("=").collect::<Vec<_>>();
-                if splitted.len() == 2 {
+                if splitted.len() >= 2 {
                     let first_entry =splitted.get(0).unwrap();
                     if first_entry == &"nome"{
                         ret.nome = Some(splitted.get(1).unwrap().replace("%40", "@").to_string());
@@ -32,7 +35,6 @@ impl NewsLetterSub{
                     }
                 }
             }
-
         }
 
         if ret.email.is_some() && ret.nome.is_some(){
@@ -42,7 +44,7 @@ impl NewsLetterSub{
         }
     }
     pub async fn write_on_file(&self, path: &str){
-        let file = fs::File::options().append(true).create(true).open(path).await;
+        let file = fs::File::options().create(true).append(true).open(path).await;
         if let Ok(mut file) = file{
             let result = file.write(format!("{}, {}\n", self.email.as_ref().unwrap(), self.nome.as_ref().unwrap()).as_bytes(), ).await;
             if let Err(result) = result{ println!("error while writing the file {:?} \nfor user{:?}", result, self) }

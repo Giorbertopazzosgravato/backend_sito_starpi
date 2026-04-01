@@ -29,7 +29,7 @@ impl Server{
                 let database = db;
                 let mut buffer: [u8; 1024] = [0; 1024];
 
-                stream.read(&mut buffer).expect("zamn");
+                stream.read(&mut buffer).unwrap_or(0);
                 let request_string = String::from_utf8_lossy(&buffer);
                 let lines = request_string.split(" ").collect::<Vec<_>>();
 
@@ -46,17 +46,19 @@ impl Server{
                 &"POST" => {
                     println!("{:?}", body);
                     Self::handle_post_requests(body.get(body.len()-1), body.get(1), database).await }
-                &_ => { HttpResponseDescriptor{
-                    content: "what the fucking kind of request is this".to_string().into_bytes(),
-                    content_type: "text/html",
-                    code: crate::server_utils::file_handler::HttpCodes::Ok,
-                }.build_http_response()}
+                &_ => {
+                    HttpResponseDescriptor{
+                        content: "what the fucking kind of protocol is this".to_string().into_bytes(),
+                        content_type: "text/html",
+                        code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
+                    }.build_http_response()
+                }
             }
         } else{
             HttpResponseDescriptor{
                 content: "what the fucking kind of request is this".to_string().into_bytes(),
                 content_type: "text/html",
-                code: crate::server_utils::file_handler::HttpCodes::Ok,
+                code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
             }.build_http_response()
         }
     }
@@ -67,7 +69,7 @@ impl Server{
                     None => { println!("error creating user {:?}", data) }
                     Some(user) => {
                         tokio::spawn(async move{
-                            user.write_on_file("utenti_newsletter.txt").await;
+                            user.write_on_file("data/utenti_newsletter.txt").await;
                             println!("wrote on file");
                         });
                     }
@@ -78,7 +80,13 @@ impl Server{
         } else{
             println!("no path");
         }
-        Self::handle_get_request(database, Some(&"/")).await
+        
+        // il server non gestisce piu' i file statici 😭😭😭
+        HttpResponseDescriptor{
+            content: vec![],
+            content_type: "/",
+            code: crate::server_utils::file_handler::HttpCodes::SeeOtherLocation,
+        }.build_http_response()
     }
     async fn handle_get_request(database: Database, request: Option<&&str>) -> Vec<u8>{
         match request{

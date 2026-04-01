@@ -9,8 +9,10 @@ const NEWS: &str = "news/";
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_FORBIDDEN: &str = "HTTP/1.1 403 Forbidden";
+pub const HTTP_SEE_OTHER_LOCATIONS: &str = "HTTP/1.1 303 See Other";
 pub enum HttpCodes{
     Ok = 200,
+    SeeOtherLocation = 303,
     PermissionDenied = 403,
     FileNotFound = 404,
 }
@@ -152,6 +154,9 @@ impl HttpResponseDescriptor {
                 let mut final_response = format!("{HTTP_BAD_REQUEST}\r\nContent-Length:{}\r\n\r\n", self.content.len()).into_bytes();
                 final_response.extend(&self.content);
                 final_response
+            }
+            HttpCodes::SeeOtherLocation => {
+                format!("{HTTP_SEE_OTHER_LOCATIONS}\r\nLocation: {}\r\n\r\n", self.content_type).into_bytes()
             }
         }
     }

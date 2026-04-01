@@ -9,14 +9,14 @@ pub struct Database{
 }
 impl Database{
     pub async fn new(env: &str)->anyhow::Result<Self>{
-        let env = EnvGetter::get_environment_variables(env)?;
+        let env = EnvGetter::get_environment_variables()?;
         let connection = sqlx::postgres::PgPool::connect(
             &format!("postgres://{}:{}@{}:{}/{}",
-                    env.get("username").unwrap(),
-                    env.get("password").unwrap(),
-                    env.get("database_url").unwrap(),
-                    env.get("database_port").unwrap(),
-                    env.get("database_name").unwrap()
+                    env.username,
+                    env.password,
+                    env.database_url,
+                    env.database_port,
+                    env.database_name
             ))
             .await?;
         Ok(Self{
