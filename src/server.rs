@@ -69,7 +69,7 @@ impl Server{
                     None => { println!("error creating user {:?}", data) }
                     Some(user) => {
                         tokio::spawn(async move{
-                            user.write_on_file("data/utenti_newsletter.txt").await;
+                            user.write_on_file("/usr/src/app/data/utenti_newsletter.txt").await;
                             println!("wrote on file");
                         });
                     }
