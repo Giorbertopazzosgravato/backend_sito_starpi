@@ -1,7 +1,10 @@
 use std::ffi::OsStr;
+use std::fmt::format;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use uuid::Uuid;
+use crate::server_utils::file_handler::CookieOptions::{Domain, MaxAge};
 
 const DIST: &str = "dist/";
 const FOTO: &str = "foto/";
@@ -16,11 +19,34 @@ pub enum HttpCodes{
     PermissionDenied = 403,
     FileNotFound = 404,
 }
+pub enum CookieOptions{
+    Domain (String),
+    Expires(Date),
+    HttpOnly,
+    MaxAge(u128),
+    Partitioned,
+    Path(String),
+    Secure,
+    SameSiteStrict,
+    SameSiteLax,
+    SameSiteNone,
+}
+pub struct Date{
+    day: u8,
+    month: String, // Jan, Feb, Mar...
+    year: u32,
+}
 pub struct FileHandler;
+pub struct Cookie{
+    name: String,
+    value: String,
+    options: Option<String>
+}
 pub struct HttpResponseDescriptor {
     pub content: Vec<u8>,
     pub content_type: &'static str,
-    pub code: HttpCodes
+    pub code: HttpCodes,
+    pub cookies: Option<Vec<Cookie>>
 }
 
 impl FileHandler{
@@ -36,6 +62,7 @@ impl FileHandler{
                             content: buffer,
                             content_type,
                             code: HttpCodes::Ok,
+                            cookies: None,
                         }
                     } else {
                         println!("error reading file: {:?}", path);
@@ -43,6 +70,7 @@ impl FileHandler{
                             content: "fuck, couldn't read file".as_bytes().to_owned(),
                             content_type: "text/html",
                             code: HttpCodes::FileNotFound,
+                            cookies: None,
                         }
                     }
                 }
@@ -52,6 +80,7 @@ impl FileHandler{
                             content: Self::get_error_page(),
                             content_type: "text/html",
                             code: HttpCodes::FileNotFound,
+                        cookies: None,
                     }
                 }
             }
@@ -60,6 +89,7 @@ impl FileHandler{
                 content: Self::get_error_page(), // todo : mandare a fare in culo l'utente
                 content_type: "text/html",
                 code: HttpCodes::PermissionDenied,
+                cookies: None,
             }
         }
     }
@@ -135,13 +165,45 @@ impl FileHandler{
             }
         }
     }
+
+    pub fn get_area_privata_html() -> HttpResponseDescriptor {
+        let mut response = Self::get_file("AreaPrivata.html");
+        response.cookies = Some(vec![
+            Cookie {
+                name: "uuid".to_string(),
+                value: Uuid::new_v4().to_string(),
+                options: Some("; Domain = starpi.eu; Max-Age = 62400; SameSite=Lax".to_string()),
+            }]);
+        response
+    }
 }
 
 impl HttpResponseDescriptor {
     pub fn build_http_response(&self) -> Vec<u8>{
         match self.code{
             HttpCodes::Ok => {
-                let mut final_response = format!("{HTTP_OK}\r\nContent-type: {}\r\nContent-Length:{}\r\n\r\n", self.content_type, self.content.len()).into_bytes();
+                let mut cookies_vec = vec![];
+                if let Some(cookies) = &self.cookies{
+                    for cookie in cookies{
+                        cookies_vec.push(
+                            format!(
+                                "Set-Cookie: {}={}{}\r\n",
+                                cookie.name,
+                                cookie.value,
+                                cookie.options.as_ref().unwrap_or(&"".to_string())
+                            ));
+                    }
+                }
+                let mut cookie_string = "".to_string();
+                for cookie in cookies_vec{
+                    cookie_string += &cookie;
+                }
+                let mut final_response = format!(
+                    "{HTTP_OK}\r\nContent-type: {}\r\nContent-Length:{}\r\n{}\r\n",
+                    self.content_type,
+                    self.content.len(),
+                    cookie_string,
+                ).into_bytes();
                 final_response.extend(&self.content);
                 final_response
             }

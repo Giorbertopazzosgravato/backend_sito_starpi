@@ -32,7 +32,7 @@ impl Server{
                 stream.read(&mut buffer).unwrap_or(0);
                 let request_string = String::from_utf8_lossy(&buffer);
                 let lines = request_string.split(" ").collect::<Vec<_>>();
-
+                println!("{:?}", request_string);
                 let response = Self::handle_request(lines, database).await;
                 stream.write_all(&response).unwrap();
             });
@@ -51,6 +51,7 @@ impl Server{
                         content: "what the fucking kind of protocol is this".to_string().into_bytes(),
                         content_type: "text/html",
                         code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
+                        cookies: None,
                     }.build_http_response()
                 }
             }
@@ -59,23 +60,28 @@ impl Server{
                 content: "what the fucking kind of request is this".to_string().into_bytes(),
                 content_type: "text/html",
                 code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
+                cookies: None,
             }.build_http_response()
         }
     }
     async fn handle_post_requests(data: Option<&&str>, path: Option<&&str>, database: Database) -> Vec<u8>{
         if let Some(path) = path{
-            if path == &"/IscrizioneGiornale"{
-                match NewsLetterSub::new(&data){
-                    None => { println!("error creating user {:?}", data) }
-                    Some(user) => {
-                        tokio::spawn(async move{
-                            user.write_on_file("/usr/src/app/data/utenti_newsletter.txt").await;
-                            println!("wrote on file");
-                        });
+            match path{
+                &"/IscrizioneGiornale" => { // change this shit
+                    match NewsLetterSub::new(&data){
+                        None => { println!("error creating user {:?}", data) }
+                        Some(user) => {
+                            tokio::spawn(async move{
+                                user.write_on_file("/usr/src/app/data/utenti_newsletter.txt").await;
+                                println!("wrote on file");
+                            });
+                        }
                     }
                 }
-            } else{
-                println!("not home");
+                &"/troncami_dentro" => {
+                    
+                }
+                &_ => {println!("what is this diddy blud asking me")}
             }
         } else{
             println!("no path");
@@ -86,6 +92,7 @@ impl Server{
             content: vec![],
             content_type: "/",
             code: crate::server_utils::file_handler::HttpCodes::SeeOtherLocation,
+            cookies: None,
         }.build_http_response()
     }
     async fn handle_get_request(database: Database, request: Option<&&str>) -> Vec<u8>{

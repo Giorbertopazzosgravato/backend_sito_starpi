@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use sqlx::{Pool, Postgres, Row};
 use crate::server_utils::env::EnvGetter;
-use crate::server_utils::file_handler::{HttpCodes, HttpResponseDescriptor};
+use crate::server_utils::file_handler::{FileHandler, HttpCodes, HttpResponseDescriptor};
 
 #[derive(Clone)]
 pub struct Database{
@@ -31,12 +31,14 @@ impl Database{
                     content: response,
                     content_type: "text/json",
                     code: HttpCodes::Ok,
+                    cookies: None,
                 }
             }
             Err(err) => { HttpResponseDescriptor{
                 content: err,
                 content_type: "text/json",
                 code: HttpCodes::FileNotFound,
+                cookies: None,
             } }
         }
     }
@@ -141,6 +143,38 @@ FROM (
             }
             _=>{
                Err("peanits".to_string().into_bytes())
+            }
+        }
+    }
+
+    pub async fn login(&self, email: String, password: String) -> HttpResponseDescriptor {
+        match sqlx::query(
+            "SELECT * from credenziali where email = $1 and password = $2"
+        )
+            .bind(email)
+            .bind(password)
+            .fetch_one(&self.connection)
+            .await {
+            Ok(row) => {
+                if row.is_empty(){
+                    HttpResponseDescriptor{
+                        content: "wrong email or password".as_bytes().to_owned(),
+                        content_type: "text/text",
+                        code: HttpCodes::PermissionDenied,
+                        cookies: None,
+                    }
+                } else {
+                    FileHandler::get_area_privata_html()
+                }
+            }
+            Err(error) => {
+                println!("error while accessing database login: {:?}", error);
+                HttpResponseDescriptor{
+                    content: "error while accessing database".as_bytes().to_owned(),
+                    content_type: "text/json",
+                    code: HttpCodes::PermissionDenied,
+                    cookies: None,
+                }
             }
         }
     }
