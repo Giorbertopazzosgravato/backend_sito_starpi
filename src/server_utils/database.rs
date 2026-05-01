@@ -156,6 +156,7 @@ FROM (
             .fetch_one(&self.connection)
             .await {
             Ok(row) => {
+                println!("{:?}", row);
                 if row.is_empty(){
                     HttpResponseDescriptor{
                         content: "wrong email or password".as_bytes().to_owned(),
@@ -168,8 +169,8 @@ FROM (
                     if user_level == Some(1){
                         HttpResponseDescriptor{
                             content: "".as_bytes().to_owned(),
-                            content_type: "",
-                            code: HttpCodes::PrivateResponseOkAdmin,
+                            content_type: "/private/",
+                            code: HttpCodes::SeeOtherLocation,
                             cookies: None,
                         }
                     } else if user_level == Some(2){

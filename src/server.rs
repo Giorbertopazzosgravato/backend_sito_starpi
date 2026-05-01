@@ -32,9 +32,10 @@ impl Server{
 
                 stream.read(&mut buffer).unwrap_or(0);
                 let request_string = String::from_utf8_lossy(&buffer);
+                println!("request: {:?}", request_string);
                 let lines = request_string.split(" ").collect::<Vec<_>>();
-                println!("{:?}", request_string);
                 let response = Self::handle_request(lines, database).await;
+                println!("response: {:?}", String::from_utf8_lossy(&response));
                 stream.write_all(&response).unwrap();
             });
         }
@@ -126,7 +127,6 @@ impl Server{
                 if line.starts_with("/database/"){
                     database.get(line).await.build_http_response()
                 } else if line.starts_with("/AreaPrivata/"){
-
                     database.login("gino".to_string(), "pino".to_string()).await.build_http_response()
                 } else{
                     HTTP_BAD_REQUEST_DEFAULT_MESSAGE.as_bytes().to_owned()
