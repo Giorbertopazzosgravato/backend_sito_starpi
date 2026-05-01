@@ -164,7 +164,29 @@ FROM (
                         cookies: None,
                     }
                 } else {
-                    FileHandler::get_area_privata_html()
+                    let user_level:Option<i32> = row.get("livello");
+                    if user_level == Some(1){
+                        HttpResponseDescriptor{
+                            content: "".as_bytes().to_owned(),
+                            content_type: "",
+                            code: HttpCodes::PrivateResponseOkAdmin,
+                            cookies: None,
+                        }
+                    } else if user_level == Some(2){
+                        HttpResponseDescriptor{
+                            content: "".as_bytes().to_owned(),
+                            content_type: "",
+                            code: HttpCodes::PrivateResponseOkUser,
+                            cookies: None,
+                        }
+                    } else{
+                        HttpResponseDescriptor{
+                            content: "".as_bytes().to_owned(),
+                            content_type: "",
+                            code: HttpCodes::PermissionDenied,
+                            cookies: None,
+                        }
+                    }
                 }
             }
             Err(error) => {

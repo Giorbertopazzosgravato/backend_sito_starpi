@@ -6,9 +6,7 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 use crate::server_utils::file_handler::CookieOptions::{Domain, MaxAge};
 
-const DIST: &str = "dist/";
-const FOTO: &str = "foto/";
-const NEWS: &str = "news/";
+const AREA_PRIVATA: &str = "/private/";
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_FORBIDDEN: &str = "HTTP/1.1 403 Forbidden";
@@ -18,6 +16,8 @@ pub enum HttpCodes{
     SeeOtherLocation = 303,
     PermissionDenied = 403,
     FileNotFound = 404,
+    PrivateResponseOkAdmin = 9999,
+    PrivateResponseOkUser = 9998,
 }
 pub enum CookieOptions{
     Domain (String),
@@ -50,82 +50,90 @@ pub struct HttpResponseDescriptor {
 }
 
 impl FileHandler{
-    pub fn get_file<P: AsRef<Path> + std::fmt::Debug>(path: P) -> HttpResponseDescriptor {
-        if let Ok(path) = Self::is_path_safe(path) {
-            match fs::File::open(&path) {
-                Ok(mut file_content) => {
-                    let content_type = Self::get_content_type(path.extension());
-                    let mut buffer = vec![];
-                    let bytes_read = file_content.read_to_end(&mut buffer).unwrap_or(0);
-                    if bytes_read > 0 {
-                        HttpResponseDescriptor {
-                            content: buffer,
-                            content_type,
-                            code: HttpCodes::Ok,
-                            cookies: None,
-                        }
-                    } else {
-                        println!("error reading file: {:?}", path);
-                        HttpResponseDescriptor {
-                            content: "fuck, couldn't read file".as_bytes().to_owned(),
-                            content_type: "text/html",
-                            code: HttpCodes::FileNotFound,
-                            cookies: None,
-                        }
-                    }
-                }
-                Err(what) => {
-                    println!("error while opening file: {what}");
+    // pub fn get_file<P: AsRef<Path> + std::fmt::Debug + PartialEq<&'static str> + From<&'static str>>(path: P) -> HttpResponseDescriptor {
+    //     let path = if path == ""{
+    //         "index.html".into()
+    //     } else {
+    //         path
+    //     };
+    //     if let Some(path) = Self::is_path_safe(path) {
+    //         Self::get_file_content(path)
+    //     } else {
+    //         HttpResponseDescriptor {
+    //             content: Self::get_error_page(), // todo : mandare a fare in culo l'utente
+    //             content_type: "text/html",
+    //             code: HttpCodes::PermissionDenied,
+    //             cookies: None,
+    //         }
+    //     }
+    // }
+    fn get_file_content(path: PathBuf) -> HttpResponseDescriptor {
+        match fs::File::open(&path) {
+            Ok(mut file_content) => {
+                let content_type = Self::get_content_type(path.extension());
+                let mut buffer = vec![];
+                let bytes_read = file_content.read_to_end(&mut buffer).unwrap_or(0);
+                if bytes_read > 0 {
                     HttpResponseDescriptor {
-                            content: Self::get_error_page(),
-                            content_type: "text/html",
-                            code: HttpCodes::FileNotFound,
+                        content: buffer,
+                        content_type,
+                        code: HttpCodes::Ok,
+                        cookies: None,
+                    }
+                } else {
+                    println!("error reading file: {:?}", path);
+                    HttpResponseDescriptor {
+                        content: "fuck, couldn't read file".as_bytes().to_owned(),
+                        content_type: "text/html",
+                        code: HttpCodes::FileNotFound,
                         cookies: None,
                     }
                 }
             }
-        } else {
-            HttpResponseDescriptor {
-                content: Self::get_error_page(), // todo : mandare a fare in culo l'utente
-                content_type: "text/html",
-                code: HttpCodes::PermissionDenied,
-                cookies: None,
-            }
-        }
-    }
-    fn is_path_safe<P: AsRef<Path> + std::fmt::Debug>(user_input: P) -> Result<PathBuf, bool> {
-        let user_input = user_input.as_ref();
-        let (base_path, combined_path) = if user_input.starts_with(FOTO){
-            (
-                PathBuf::from(FOTO).canonicalize(),
-                PathBuf::from(FOTO).join(user_input.strip_prefix(FOTO).unwrap_or(user_input)).canonicalize()
-            )
-        } else if user_input.starts_with(NEWS) {
-            (
-                PathBuf::from(NEWS).canonicalize(),
-                PathBuf::from(NEWS).join(user_input.strip_prefix(NEWS).unwrap_or(user_input)).canonicalize()
-            )
-        } else {
-            (
-                PathBuf::from(DIST).canonicalize(),
-                PathBuf::from(DIST).join(user_input).canonicalize()
-            )
-        };
-        match combined_path {
-            Ok(resolved_path) => {
-                if let Ok(base_path) = base_path{
-                    if resolved_path.starts_with(base_path){ Ok(resolved_path) } else {Err(true)}
-                } else{
-                    println!("error while looking for base path");
-                    Err(false)
+            Err(what) => {
+                println!("error while opening file: {what}");
+                HttpResponseDescriptor {
+                    content: Self::get_error_page(),
+                    content_type: "text/html",
+                    code: HttpCodes::FileNotFound,
+                    cookies: None,
                 }
             }
-            Err(what) => {
-                println!("error while looking for user path: {:?} {what}", user_input);
-                Err(false)
-            }
         }
     }
+    // fn is_path_safe<P: AsRef<Path> + std::fmt::Debug>(user_input: P) -> Option<PathBuf> {
+    //     let user_input = user_input.as_ref();
+    //     let (base_path, combined_path) = if user_input.starts_with(AREA_PRIVATA){
+    //         (
+    //             PathBuf::from("").canonicalize(),
+    //             PathBuf::from(FOTO).join(user_input.strip_prefix(FOTO).unwrap_or(user_input)).canonicalize()
+    //         )
+    //     } else if user_input.starts_with(NEWS) {
+    //         (
+    //             PathBuf::from(NEWS).canonicalize(),
+    //             PathBuf::from(NEWS).join(user_input.strip_prefix(NEWS).unwrap_or(user_input)).canonicalize()
+    //         )
+    //     } else {
+    //         (
+    //             PathBuf::from(DIST).canonicalize(),
+    //             PathBuf::from(DIST).join(user_input).canonicalize()
+    //         )
+    //     };
+    //     match combined_path {
+    //         Ok(resolved_path) => {
+    //             if let Ok(base_path) = base_path{
+    //                 if resolved_path.starts_with(base_path){ Some(resolved_path) } else {None}
+    //             } else{
+    //                 println!("error while looking for base path");
+    //                 None
+    //             }
+    //         }
+    //         Err(what) => {
+    //             println!("error while looking for user path: {:?} {what}", user_input);
+    //             None
+    //         }
+    //     }
+    // }
     fn get_error_page() -> Vec<u8>{
         match fs::read_to_string("404.html"){
             Ok(file_content) => {file_content.into()}
@@ -165,26 +173,15 @@ impl FileHandler{
             }
         }
     }
-
-    pub fn get_area_privata_html() -> HttpResponseDescriptor {
-        let mut response = Self::get_file("AreaPrivata.html");
-        response.cookies = Some(vec![
-            Cookie {
-                name: "uuid".to_string(),
-                value: Uuid::new_v4().to_string(),
-                options: Some("; Domain = starpi.eu; Max-Age = 62400; SameSite=Lax".to_string()),
-            }]);
-        response
-    }
 }
 
 impl HttpResponseDescriptor {
-    pub fn build_http_response(&self) -> Vec<u8>{
-        match self.code{
+    pub fn build_http_response(&self) -> Vec<u8> {
+        match self.code {
             HttpCodes::Ok => {
                 let mut cookies_vec = vec![];
-                if let Some(cookies) = &self.cookies{
-                    for cookie in cookies{
+                if let Some(cookies) = &self.cookies {
+                    for cookie in cookies {
                         cookies_vec.push(
                             format!(
                                 "Set-Cookie: {}={}{}\r\n",
@@ -195,7 +192,7 @@ impl HttpResponseDescriptor {
                     }
                 }
                 let mut cookie_string = "".to_string();
-                for cookie in cookies_vec{
+                for cookie in cookies_vec {
                     cookie_string += &cookie;
                 }
                 let mut final_response = format!(
@@ -219,6 +216,12 @@ impl HttpResponseDescriptor {
             }
             HttpCodes::SeeOtherLocation => {
                 format!("{HTTP_SEE_OTHER_LOCATIONS}\r\nLocation: {}\r\n\r\n", self.content_type).into_bytes()
+            }
+            HttpCodes::PrivateResponseOkAdmin => {
+                "HTTP/1.1 200 OK\r\nX-Accel-Redirect: /admin/index.html\r\nContent-Length: 0\r\n\r\n".as_bytes().to_owned()
+            }
+            HttpCodes::PrivateResponseOkUser => {
+                "HTTP/1.1 200 OK\r\nX-Accel-Redirect: /utente/index.html\r\nContent-Length: 0\r\n\r\n".as_bytes().to_owned()
             }
         }
     }
