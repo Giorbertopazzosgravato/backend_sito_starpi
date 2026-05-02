@@ -1,9 +1,8 @@
 use std::env::current_dir;
 use std::io::{Read, Write};
 use std::net::TcpListener;
-use std::path::{Path};
 use crate::server_utils::database::Database;
-use crate::server_utils::file_handler::{FileHandler, HttpResponseDescriptor};
+use crate::server_utils::http_response::{HttpResponseDescriptor};
 use crate::server_utils::news_letter_substription::NewsLetterSub;
 use crate::server_utils::post_request_data::PostRequestData;
 
@@ -16,7 +15,7 @@ impl Server{
     pub async fn new(addr: &str) -> anyhow::Result<Self>{
         println!("{:?}", current_dir());
         let listener = TcpListener::bind(addr)?;
-        let database = Database::new("./database/db.env").await?;
+        let database = Database::new().await?;
         Ok(Self{
             listener,
             db: database,
@@ -52,7 +51,7 @@ impl Server{
                     HttpResponseDescriptor{
                         content: "what the fucking kind of protocol is this".to_string().into_bytes(),
                         content_type: "text/html",
-                        code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
+                        code: crate::server_utils::http_response::HttpCodes::PermissionDenied,
                         cookies: None,
                     }.build_http_response()
                 }
@@ -61,7 +60,7 @@ impl Server{
             HttpResponseDescriptor{
                 content: "what the fucking kind of request is this".to_string().into_bytes(),
                 content_type: "text/html",
-                code: crate::server_utils::file_handler::HttpCodes::PermissionDenied,
+                code: crate::server_utils::http_response::HttpCodes::PermissionDenied,
                 cookies: None,
             }.build_http_response()
         }
@@ -84,7 +83,7 @@ impl Server{
                     HttpResponseDescriptor{
                         content: vec![],
                         content_type: "/",
-                        code: crate::server_utils::file_handler::HttpCodes::SeeOtherLocation,
+                        code: crate::server_utils::http_response::HttpCodes::SeeOtherLocation,
                         cookies: None,
                     }.build_http_response()
                 }
@@ -101,7 +100,7 @@ impl Server{
                     HttpResponseDescriptor{
                         content: vec![],
                         content_type: "/",
-                        code: crate::server_utils::file_handler::HttpCodes::SeeOtherLocation,
+                        code: crate::server_utils::http_response::HttpCodes::SeeOtherLocation,
                         cookies: None,
                     }.build_http_response()
                 }
@@ -111,7 +110,7 @@ impl Server{
             HttpResponseDescriptor{
                 content: vec![],
                 content_type: "/",
-                code: crate::server_utils::file_handler::HttpCodes::SeeOtherLocation,
+                code: crate::server_utils::http_response::HttpCodes::SeeOtherLocation,
                 cookies: None,
             }.build_http_response()
         }

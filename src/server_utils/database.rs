@@ -1,14 +1,15 @@
 use std::str::FromStr;
 use sqlx::{Pool, Postgres, Row};
+use uuid::Uuid;
 use crate::server_utils::env::EnvGetter;
-use crate::server_utils::file_handler::{FileHandler, HttpCodes, HttpResponseDescriptor};
+use crate::server_utils::http_response::{Cookie, HttpCodes, HttpResponseDescriptor};
 
 #[derive(Clone)]
 pub struct Database{
     pub connection: Pool<Postgres>
 }
 impl Database{
-    pub async fn new(env: &str)->anyhow::Result<Self>{
+    pub async fn new()->anyhow::Result<Self>{
         let env = EnvGetter::get_environment_variables()?;
         let connection = sqlx::postgres::PgPool::connect(
             &format!("postgres://{}:{}@{}:{}/{}",
@@ -149,7 +150,7 @@ FROM (
 
     pub async fn login(&self, email: String, password: String) -> HttpResponseDescriptor {
         match sqlx::query(
-            "SELECT * from credenziali where email = $1 and password = $2"
+            "SELECT * from credenziali, gen_random_uuid() as uuid where email = $1 and password = $2"
         )
             .bind(email)
             .bind(password)
@@ -165,15 +166,21 @@ FROM (
                         cookies: None,
                     }
                 } else {
-                    let user_level:Option<i32> = row.get("livello");
-                    if user_level == Some(1){
+                    let user_level: i32 = row.get("livello");
+                    let uuid: Uuid = row.get("uuid");
+                    if user_level == 1{
                         HttpResponseDescriptor{
                             content: "".as_bytes().to_owned(),
                             content_type: "/private/",
                             code: HttpCodes::SeeOtherLocation,
-                            cookies: None,
+                            cookies: Some(vec![
+                                Cookie{
+                                    name: "uuid".to_string(),
+                                    value: uuid.to_string(),
+                                    options: Some("Max-Age=86400".to_string()),
+                            }]),
                         }
-                    } else if user_level == Some(2){
+                    } else if user_level == 2 {
                         HttpResponseDescriptor{
                             content: "".as_bytes().to_owned(),
                             content_type: "",
