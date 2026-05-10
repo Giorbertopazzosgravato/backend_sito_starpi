@@ -44,6 +44,8 @@ services:
       - ./dist:/usr/share/nginx/html/dist
       - ./foto:/usr/share/nginx/html/foto
       - ./news:/usr/share/nginx/html/news
+      - ./admin:/usr/share/nginx/html/admin
+      - ./utente:/usr/share/nginx/html/utente
 
 volumes:
   pgdata:

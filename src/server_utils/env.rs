@@ -23,5 +23,4 @@ impl EnvGetter{
             database_name,
         })
     }
-
 }

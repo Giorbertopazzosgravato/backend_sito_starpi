@@ -1,12 +1,3 @@
-use std::ffi::OsStr;
-use std::fmt::format;
-use std::fs;
-use std::io::Read;
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
-use crate::server_utils::http_response::CookieOptions::{Domain, MaxAge};
-
-const AREA_PRIVATA: &str = "/private/";
 pub const HTTP_OK: &str = "HTTP/1.1 200 OK";
 pub const HTTP_BAD_REQUEST: &str = "HTTP/1.1 400 Bad Request";
 pub const HTTP_FORBIDDEN: &str = "HTTP/1.1 403 Forbidden";
@@ -16,25 +7,10 @@ pub enum HttpCodes{
     SeeOtherLocation = 303,
     PermissionDenied = 403,
     FileNotFound = 404,
-    PrivateResponseOkAdmin = 9999,
-    PrivateResponseOkUser = 9998,
 }
-pub enum CookieOptions{
-    Domain (String),
-    Expires(Date),
-    HttpOnly,
-    MaxAge(u128),
-    Partitioned,
-    Path(String),
-    Secure,
-    SameSiteStrict,
-    SameSiteLax,
-    SameSiteNone,
-}
-pub struct Date{
-    day: u8,
-    month: String, // Jan, Feb, Mar...
-    year: u32,
+pub enum PrivateHttpCodes{
+    PrivateResponseOkAdmin,
+    PrivateResponseOkUser,
 }
 pub struct Cookie{
     pub name: String,
@@ -47,7 +23,14 @@ pub struct HttpResponseDescriptor {
     pub code: HttpCodes,
     pub cookies: Option<Vec<Cookie>>
 }
+pub struct PrivateResponseDescriptor{
+    pub path: String,
+    pub code: PrivateHttpCodes,
+}
 
+pub trait BuildHttpResponse{
+    fn build_http_response(&self) -> Vec<u8>;
+}
 impl HttpResponseDescriptor {
     fn build_cookies(&self) -> String {
         let mut cookies_vec = vec![];
@@ -68,7 +51,9 @@ impl HttpResponseDescriptor {
         }
         cookie_string
     }
-    pub fn build_http_response(&self) -> Vec<u8> {
+}
+impl BuildHttpResponse for HttpResponseDescriptor{
+    fn build_http_response(&self) -> Vec<u8> {
         match self.code {
             HttpCodes::Ok => {
                 let cookie_string = self.build_cookies();
@@ -92,13 +77,19 @@ impl HttpResponseDescriptor {
                 final_response
             }
             HttpCodes::SeeOtherLocation => {
-                format!("{HTTP_SEE_OTHER_LOCATIONS}\r\nLocation: {}\r\n{}\r\n", self.content_type, self.build_cookies()).into_bytes()
+                format!("{HTTP_SEE_OTHER_LOCATIONS}\r\nLocation: {}\r\n{}\r\n", String::from_utf8_lossy(&self.content), self.build_cookies()).into_bytes()
             }
-            HttpCodes::PrivateResponseOkAdmin => {
-                "HTTP/1.1 200 OK\r\nX-Accel-Redirect: /admin/index.html\r\nContent-Length: 0\r\n\r\n".as_bytes().to_owned()
+        }
+    }
+}
+impl BuildHttpResponse for PrivateResponseDescriptor {
+    fn build_http_response(&self) -> Vec<u8> {
+        match self.code {
+            PrivateHttpCodes::PrivateResponseOkAdmin => {
+                format!("HTTP/1.1 200 OK\r\nX-Accel-Redirect: /admin/{}\r\nContent-Length: 0\r\n\r\n", self.path).as_bytes().to_owned()
             }
-            HttpCodes::PrivateResponseOkUser => {
-                "HTTP/1.1 200 OK\r\nX-Accel-Redirect: /utente/index.html\r\nContent-Length: 0\r\n\r\n".as_bytes().to_owned()
+            PrivateHttpCodes::PrivateResponseOkUser => {
+                format!("HTTP/1.1 200 OK\r\nX-Accel-Redirect: /user/{}\r\nContent-Length: 0\r\n\r\n", self.path).as_bytes().to_owned()
             }
         }
     }
